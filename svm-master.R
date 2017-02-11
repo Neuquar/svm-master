@@ -4,7 +4,10 @@ library(rbokeh)
 library(shinyjs)
 library(shinythemes)
 
-data("iris")
+x=c(rnorm(1000,1000,100),rnorm(1000,2000,200),rnorm(1000,3000,400))
+y=c(abs(rnorm(1000,50,25)),rnorm(1000,200,50),rnorm(1000,100,30))
+grupo=as.factor(c(rep(1,1000),rep(2,1000),rep(3,1000)))
+datos=data.frame(x,y,grupo)
 
 server <-  function(input, output) {
   
@@ -45,32 +48,33 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    iris.indices <- sample(1:nrow(iris),size=n)
-    iris.entrenamiento <- iris[iris.indices,]
-    iris.test <- iris[-iris.indices,]
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
     
     #SVM
     switch(input$kernel,
-           "linear" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
     #grafica
     p <- figure(width = 1000, height = 450) %>%
-      ly_points(Sepal.Length, Sepal.Width, data = iris.entrenamiento,
-                color = Species, glyph = c(21,25)[1:n %in% iris.svm$index + 1],
-                hover = list(Sepal.Length, Sepal.Width))
+      ly_points(x, y, data = datos.entrenamiento,
+                color = datos.entrenamiento$grupo, glyph = c(21,25)[1:n %in% datos.svm$index + 1],
+                hover = list(x, y))
     p
   })
+  
   output$plot1 <- renderPlot({
     set.seed(101)
     #Parametros SVM
@@ -82,28 +86,29 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    iris.indices <- sample(1:nrow(iris),size=n)
-    iris.entrenamiento <- iris[iris.indices,]
-    iris.test <- iris[-iris.indices,]
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
     
     #SVM
     switch(input$kernel,
-           "linear" = iris.svm <- svm(Species ~Sepal.Width + Sepal.Length, data=iris.entrenamiento, 
+           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = iris.svm <- svm(Species ~Sepal.Width + Sepal.Length, data=iris.entrenamiento, 
+           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = iris.svm <- svm(Species ~Sepal.Width + Sepal.Length, data=iris.entrenamiento, 
+           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = iris.svm <- svm(Species ~Sepal.Width + Sepal.Length, data=iris.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
-    plot(iris.svm, iris.entrenamiento, Sepal.Width ~ Sepal.Length, 
-         slice = list(sepal.width = 1, sepal.length = 2))
+    plot(datos.svm, datos.entrenamiento, y ~ x, 
+         slice = list(x = 1, y = 2))
   })
+  
   output$pred <- renderPrint({
     set.seed(101)
     #Parametros SVM
@@ -115,30 +120,30 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    iris.indices <- sample(1:nrow(iris),size=n)
-    iris.entrenamiento <- iris[iris.indices,]
-    iris.test <- iris[-iris.indices,]
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
     
     #SVM
     switch(input$kernel,
-           "linear" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
     #Prediccion de los restantes
-    asignado <- predict(iris.svm,new=iris.test)
+    asignado <- predict(datos.svm,new=datos.test)
     
     #Tabla de confusion
-    mc <- with(iris.test,(pred=table(asignado,Species)))
+    mc <- with(datos.test,(pred=table(asignado,datos.test$grupo)))
     print(mc)
     
   })
@@ -153,39 +158,40 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    iris.indices <- sample(1:nrow(iris),size=n)
-    iris.entrenamiento <- iris[iris.indices,]
-    iris.test <- iris[-iris.indices,]
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
     
     #SVM
     switch(input$kernel,
-           "linear" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
     
     #Prediccion de los restantes
-    asignado <- predict(iris.svm,new=iris.test)
+    asignado <- predict(datos.svm,new=datos.test)
     
     #Tabla de confusion
-    mc <- with(iris.test,(pred=table(asignado,Species)))
+    mc <- with(datos.test,(pred=table(asignado,datos.test$grupo)))
     
     #porcentaje correctamente clasificados
-    if(is.nan(correctos <- sum(diag(mc)) / nrow(iris.test) *100)){
-      correctos <- 100
+    if(is.nan(correctos <- sum(diag(mc)) / nrow(datos.test) *100)){
+      correctos <- 0
     }else {
-      correctos <- sum(diag(mc)) / nrow(iris.test) *100
+      correctos <- sum(diag(mc)) / nrow(datos.test) *100
     }
   })
+  
   output$nsv <- renderText({
     set.seed(101)
     #Parametros SVM
@@ -197,27 +203,27 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    iris.indices <- sample(1:nrow(iris),size=n)
-    iris.entrenamiento <- iris[iris.indices,]
-    iris.test <- iris[-iris.indices,]
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
     
     #SVM
     switch(input$kernel,
-           "linear" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = iris.svm <- svm(Species~., data=iris.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
     #total de vectores soporte
-    iris.svm$tot.nSV
+    datos.svm$tot.nSV
   })
   output$msj <- renderText({
     ""
@@ -225,10 +231,10 @@ server <-  function(input, output) {
 }
 
 ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
-                 tabPanel("SVM Iris",
+                 tabPanel("SVM datos",
                           sidebarLayout(
                             sidebarPanel(
-                              sliderInput('numData', 'Submuestra', value = 50, min = 10, max = 150, step = 1),
+                              sliderInput('numData', 'Submuestra', value = 50, min = 10, max = nrow(datos), step = 1),
                               selectInput("kernel", "kernel",
                                           c(Lineal = "linear",
                                             Polinominal = "polynomial",
@@ -256,7 +262,7 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                  ),
                  tabPanel("Acerca",
                           h4("Aplicacion de SVM v 3.5 "),
-                          p("Esta es una sencilla shiny app que implementa SVM sobre los datos de prueba 'Iris'
+                          p("Esta es una sencilla shiny app que implementa SVM sobre los datos de prueba 'datos'
                   del total de datos, especifique una submuestra, seleccione el tipo de kernel y en base a 
                   eso configure los parametros necesarios.
                   Se muestra la tabla de confusion, el porcentaje correctamente clasificado segun la prediccion, 
