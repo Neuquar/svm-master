@@ -3,6 +3,7 @@ library(e1071)
 library(rbokeh)
 library(shinyjs)
 library(shinythemes)
+library(DT)
 
 x=c(rnorm(1000,1000,100),rnorm(1000,2000,200),rnorm(1000,3000,400))
 y=c(abs(rnorm(1000,50,25)),rnorm(1000,200,50),rnorm(1000,100,30))
@@ -225,8 +226,20 @@ server <-  function(input, output) {
     #total de vectores soporte
     datos.svm$tot.nSV
   })
-  output$msj <- renderText({
-    ""
+  output$table <- DT::renderDataTable({
+    n <- input$numData
+    kernel <- input$kernel
+    C <- input$C
+    gamma <- input$gamma
+    cf <- input$coef0
+    dg <- input$degree
+    
+    #Data
+    datos.indices <- sample(1:nrow(datos),size=n)
+    datos.entrenamiento <- datos[datos.indices,]
+    datos.test <- datos[-datos.indices,]
+    
+    DT::datatable(datos.entrenamiento, options=list(orderClasses = TRUE))
   })
 }
 
@@ -255,6 +268,9 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                                 ),
                                 tabPanel("Grafica 2",
                                          plotOutput("plot1")
+                                ),
+                                tabPanel("Tabla",
+                                        DT::dataTableOutput("table")
                                 )
                               )
                             )
