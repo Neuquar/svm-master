@@ -262,12 +262,13 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                  ),
                  tabPanel("Acerca",
                           h4("Aplicacion de SVM v 3.5 "),
-                          p("Esta es una sencilla shiny app que implementa SVM sobre los datos de prueba 'datos'
-                  del total de datos, especifique una submuestra, seleccione el tipo de kernel y en base a 
+                          p("Esta es una sencilla shiny app que implementa SVM sobre un conjunto de 3000 datos creados por R
+                  y clasificados en 3 grupos. 
+                  Del total de datos, especifique una submuestra, seleccione el tipo de kernel y en base a 
                   eso configure los parametros necesarios.
                   Se muestra la tabla de confusion, el porcentaje correctamente clasificado segun la prediccion, 
                   el total de vectores soporte y la grafica."),
-                          p("Basada en ejemplos y la documentacion de RStudio Shiny"),
+                          p("Basada en ejemplos y la documentacion de RStudio Shiny"), 
                           a(href="https://www.twitter.com/axelmora93", "Twitter"),
                           a(href="https://www.linkedin.com/in/axel-sunem-mora-olvera-338aa6108/", "LinkedIn")
                  )
