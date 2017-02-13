@@ -7,8 +7,8 @@ library(DT)
 
 x=c(rnorm(1000,1000,100),rnorm(1000,2000,200),rnorm(1000,3000,400))
 y=c(abs(rnorm(1000,50,25)),rnorm(1000,200,50),rnorm(1000,100,30))
-grupo=as.factor(c(rep(1,1000),rep(2,1000),rep(3,1000)))
-datos=data.frame(x,y,grupo)
+clases=as.factor(c(rep(1,1000),rep(2,1000),rep(3,1000)))
+datos=data.frame(x,y,clases)
 
 server <-  function(input, output) {
   
@@ -49,29 +49,29 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
     #SVM
     switch(input$kernel,
-           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
     #grafica
     p <- figure(width = 1000, height = 450) %>%
-      ly_points(x, y, data = datos.entrenamiento,
-                color = datos.entrenamiento$grupo, glyph = c(21,25)[1:n %in% datos.svm$index + 1],
+      ly_points(x, y, data = datos.train,
+                color = datos.train$clases, glyph = c(21,25)[1:n %in% datos.svm$index + 1],
                 hover = list(x, y))
     p
   })
@@ -87,26 +87,26 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
     #SVM
     switch(input$kernel,
-           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
-    plot(datos.svm, datos.entrenamiento, y ~ x, 
+    plot(datos.svm, datos.train, y ~ x, 
          slice = list(x = 1, y = 2))
   })
   
@@ -121,22 +121,22 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
     #SVM
     switch(input$kernel,
-           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
@@ -144,7 +144,7 @@ server <-  function(input, output) {
     asignado <- predict(datos.svm,new=datos.test)
     
     #Tabla de confusion
-    mc <- with(datos.test,(pred=table(asignado,datos.test$grupo)))
+    mc <- with(datos.test,(pred=table(asignado,datos.test$clases)))
     print(mc)
     
   })
@@ -159,22 +159,22 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
     #SVM
     switch(input$kernel,
-           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
@@ -183,7 +183,7 @@ server <-  function(input, output) {
     asignado <- predict(datos.svm,new=datos.test)
     
     #Tabla de confusion
-    mc <- with(datos.test,(pred=table(asignado,datos.test$grupo)))
+    mc <- with(datos.test,(pred=table(asignado,datos.test$clases)))
     
     #porcentaje correctamente clasificados
     if(is.nan(correctos <- sum(diag(mc)) / nrow(datos.test) *100)){
@@ -204,22 +204,22 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
     #SVM
     switch(input$kernel,
-           "linear" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C),
            
-           "polynomial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                           kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
            
-           "radial" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                       kernel=kernel, cost = C, gamma = gamma),
            
-           "sigmoid" = datos.svm <- svm(grupo~y+x, data=datos.entrenamiento, 
+           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
                                        kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
     )
     
@@ -235,11 +235,11 @@ server <-  function(input, output) {
     dg <- input$degree
     
     #Data
-    datos.indices <- sample(1:nrow(datos),size=n)
-    datos.entrenamiento <- datos[datos.indices,]
-    datos.test <- datos[-datos.indices,]
+    datos.index <- sample(1:nrow(datos),size=n)
+    datos.train <- datos[datos.index,]
+    datos.test <- datos[-datos.index,]
     
-    DT::datatable(datos.entrenamiento, options=list(orderClasses = TRUE))
+    DT::datatable(datos.train, options=list(orderClasses = TRUE))
   })
 }
 
@@ -279,7 +279,7 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                  tabPanel("Acerca",
                           h4("Aplicacion de SVM v 3.5 "),
                           p("Esta es una sencilla shiny app que implementa SVM sobre un conjunto de 3000 datos creados por R
-                  y clasificados en 3 grupos. 
+                  y clasificados en 3 clasess. 
                   Del total de datos, especifique una submuestra, seleccione el tipo de kernel y en base a 
                   eso configure los parametros necesarios.
                   Se muestra la tabla de confusion, el porcentaje correctamente clasificado segun la prediccion, 
