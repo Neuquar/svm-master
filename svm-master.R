@@ -5,13 +5,15 @@ library(shinyjs)
 library(shinythemes)
 library(DT)
 
+#Generacion del data frame de 3000 registros divididos equitativamente en 3 clases
 x=c(rnorm(1000,1000,100),rnorm(1000,2000,200),rnorm(1000,3000,400))
 y=c(abs(rnorm(1000,50,25)),rnorm(1000,200,50),rnorm(1000,100,30))
 clases=as.factor(c(rep(1,1000),rep(2,1000),rep(3,1000)))
 datos=data.frame(x,y,clases)
 
+#SERVER
 server <-  function(input, output) {
-  
+  #sliders de parametros del kernel
   output$ui <- renderUI({
     if (is.null(input$kernel))
       return()
@@ -37,18 +39,19 @@ server <-  function(input, output) {
                                 sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5))
     )
   })
-  
+  #grafica con Rbokeh
   output$newPlot <- renderRbokeh({
     set.seed(101)
     #Parametros SVM
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
+    n <- input$numData #submuestra 
+    kernel <- input$kernel #kernel
+    #parametros de kernel
+    C <- input$C #C
+    gamma <- input$gamma #gamma
+    cf <- input$coef0 #coef0
+    dg <- input$degree #degree
     
-    #Data
+    #Definicion de la muestra para entrenamiento y de prueba
     datos.index <- sample(1:nrow(datos),size=n)
     datos.train <- datos[datos.index,]
     datos.test <- datos[-datos.index,]
@@ -75,7 +78,7 @@ server <-  function(input, output) {
                 hover = list(x, y))
     p
   })
-  
+  #grafica con ggplot2
   output$plot1 <- renderPlot({
     set.seed(101)
     #Parametros SVM
@@ -109,7 +112,7 @@ server <-  function(input, output) {
     plot(datos.svm, datos.train, y ~ x, 
          slice = list(x = 1, y = 2))
   })
-  
+  #matriz de confusion
   output$pred <- renderPrint({
     set.seed(101)
     #Parametros SVM
@@ -148,6 +151,7 @@ server <-  function(input, output) {
     print(mc)
     
   })
+  #porcentaje correctamente asignado
   output$state <- renderText({
     set.seed(101)
     #Parametros SVM
@@ -192,7 +196,7 @@ server <-  function(input, output) {
       correctos <- sum(diag(mc)) / nrow(datos.test) *100
     }
   })
-  
+  #numero de vectores soporte
   output$nsv <- renderText({
     set.seed(101)
     #Parametros SVM
@@ -226,7 +230,9 @@ server <-  function(input, output) {
     #total de vectores soporte
     datos.svm$tot.nSV
   })
+  #tabla
   output$table <- DT::renderDataTable({
+    set.seed(101)
     n <- input$numData
     kernel <- input$kernel
     C <- input$C
@@ -242,9 +248,10 @@ server <-  function(input, output) {
     DT::datatable(datos.train, options=list(orderClasses = TRUE))
   })
 }
-
-ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
-                 tabPanel("SVM datos",
+#UI
+ui <- navbarPage( #pagina con navbar
+        theme = shinytheme("cerulean"),"SVM shiny app", #tema 
+                 tabPanel("SVM datos", 
                           sidebarLayout(
                             sidebarPanel(
                               sliderInput('numData', 'Submuestra', value = 50, min = 10, max = nrow(datos), step = 1),
@@ -253,7 +260,7 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                                             Polinominal = "polynomial",
                                             Radial = "radial",
                                             Sigmoid = "sigmoid")),
-                              uiOutput("ui"),
+                              uiOutput("ui"), #sliders de parametros de kernel
                               h4("Matriz de confusion: ", align = "rigth"),
                               verbatimTextOutput('pred'),
                               h4("Porcentaje correctamente clasificados:", align = "rigth"),
@@ -262,7 +269,7 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                               htmlOutput('nsv')
                             ),
                             mainPanel(
-                              tabsetPanel(
+                              tabsetPanel(#pestañas
                                 tabPanel("Grafica 1",
                                          rbokehOutput('newPlot')
                                 ),
