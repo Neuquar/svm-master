@@ -10,10 +10,74 @@ x=c(rnorm(1000,1000,100),rnorm(1000,2000,200),rnorm(1000,3000,400))
 y=c(abs(rnorm(1000,50,25)),rnorm(1000,200,50),rnorm(1000,100,30))
 clases=as.factor(c(rep(1,1000),rep(2,1000),rep(3,1000)))
 datos=data.frame(x,y,clases)
+w = nrow(datos)
 
-#SERVER
 server <-  function(input, output) {
-  #sliders de parametros del kernel
+  
+  inFile <- reactive({input$file1})
+  
+  dtPrev <- reactive({
+    if (is.null(inFile())){
+      datos
+    }else{
+      read.csv(inFile()$datapath)
+    }})
+  
+  
+  param <- reactiveValues()
+  observe(param$n <- input$numData)
+  observe(param$k <- input$kernel)
+  observe(param$c <- input$C)
+  observe(param$g <- input$gamma)
+  observe(param$cf <- input$coef0)
+  observe(param$dg <- input$degree)
+  
+  cols <- reactive(colnames(dtPrev()))
+  sc <- reactiveValues()
+  observe(sc$x <- which(cols() == input$xcol))
+  observe(sc$y <- which(cols() == input$ycol))
+  observe(sc$c <- which(cols() == input$ccol))
+  
+  filtro <- function(x,y,c){
+    data.frame(x,y,c)
+  }
+  
+  dtMaster <- reactive({filtro(dtPrev()[,sc$x], dtPrev()[,sc$y], dtPrev()[,sc$c])})
+  
+  indices <- function(data){
+    set.seed(101)
+    sample(1:nrow(data),size=(param$n))
+  }
+  
+  datax <- reactiveValues()
+  observe(datax$indices <- indices(dtMaster()))
+  observe(datax$entrenamiento <- dtMaster()[datax$indices,])
+  observe(datax$test <- dtMaster()[-datax$indices,])
+  
+  svmx <- reactive({
+    switch(input$kernel,
+           "linear" =  svm(c~y + x, data=datax$entrenamiento, 
+                           kernel=param$k, cost = param$c),
+           
+           "polynomial" =  svm(c~y + x, data=datax$entrenamiento, 
+                               kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf, degree = param$dg),
+           
+           "radial" = svm(c~y + x, data=datax$entrenamiento, 
+                          kernel=param$k, cost = param$c, gamma = param$g),
+           
+           "sigmoid" = svm(c~y + x, data=datax$entrenamiento, 
+                           kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
+  })
+  
+  output$ui2 <- renderUI({
+    
+    tabPanel("Columnas",
+             selectInput("xcol", "X", cols(), selected = cols()[1]),
+             selectInput("ycol", "Y", cols(), selected = cols()[2]),
+             selectInput("ccol", "Clases", cols(), selected = cols()[3])
+    )
+  })
+  
   output$ui <- renderUI({
     if (is.null(input$kernel))
       return()
@@ -39,228 +103,71 @@ server <-  function(input, output) {
                                 sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5))
     )
   })
-  #grafica con Rbokeh
+  
   output$newPlot <- renderRbokeh({
-    set.seed(101)
-    #Parametros SVM
-    n <- input$numData #submuestra 
-    kernel <- input$kernel #kernel
-    #parametros de kernel
-    C <- input$C #C
-    gamma <- input$gamma #gamma
-    cf <- input$coef0 #coef0
-    dg <- input$degree #degree
     
-    #Definicion de la muestra para entrenamiento y de prueba
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    #SVM
-    switch(input$kernel,
-           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C),
-           
-           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                          kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
-           
-           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C, gamma = gamma),
-           
-           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                       kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
-    )
-    
-    #grafica
     p <- figure(width = 1000, height = 450) %>%
-      ly_points(x, y, data = datos.train,
-                color = datos.train$clases, glyph = c(21,25)[1:n %in% datos.svm$index + 1],
-                hover = list(x, y))
+      ly_points(x, y, data = datax$entrenamiento,
+                color = c, glyph = c(21,25)[1:param$n %in% svmx()$index + 1],
+                hover = list(y, x))
     p
   })
-  #grafica con ggplot2
+  
   output$plot1 <- renderPlot({
-    set.seed(101)
-    #Parametros SVM
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
-    
-    #Data
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    #SVM
-    switch(input$kernel,
-           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C),
-           
-           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                          kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
-           
-           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C, gamma = gamma),
-           
-           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                       kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
-    )
-    
-    plot(datos.svm, datos.train, y ~ x, 
+    #plot(svmx(), data=datax$entrenamiento[,c(1,2,3)])
+    plot(svmx(), datax$entrenamiento, y ~ x, 
          slice = list(x = 1, y = 2))
   })
-  #matriz de confusion
+  
   output$pred <- renderPrint({
-    set.seed(101)
-    #Parametros SVM
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
-    
-    #Data
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    #SVM
-    switch(input$kernel,
-           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C),
-           
-           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                          kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
-           
-           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C, gamma = gamma),
-           
-           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                       kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
-    )
-    
     #Prediccion de los restantes
-    asignado <- predict(datos.svm,new=datos.test)
-    
+    asignado <- predict(svmx(),new=datax$test)
     #Tabla de confusion
-    mc <- with(datos.test,(pred=table(asignado,datos.test$clases)))
-    print(mc)
-    
+    mc <- with(datax$test,(pred=table(asignado,c)))
+    mc
   })
-  #porcentaje correctamente asignado
+  
   output$state <- renderText({
-    set.seed(101)
-    #Parametros SVM
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
-    
-    #Data
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    #SVM
-    switch(input$kernel,
-           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C),
-           
-           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                          kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
-           
-           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C, gamma = gamma),
-           
-           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                       kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
-    )
-    
-    
     #Prediccion de los restantes
-    asignado <- predict(datos.svm,new=datos.test)
-    
+    asignado <- predict(svmx(),new=datax$test)
     #Tabla de confusion
-    mc <- with(datos.test,(pred=table(asignado,datos.test$clases)))
-    
+    mc <- with(datax$test,(pred=table(asignado,c)))
     #porcentaje correctamente clasificados
-    if(is.nan(correctos <- sum(diag(mc)) / nrow(datos.test) *100)){
-      correctos <- 0
+    if(is.nan(correctos <- sum(diag(mc)) / nrow(datax$test) *100)){
+      correctos <- 100
     }else {
-      correctos <- sum(diag(mc)) / nrow(datos.test) *100
+      correctos <- sum(diag(mc)) / nrow(datax$test) *100
     }
   })
-  #numero de vectores soporte
+  
   output$nsv <- renderText({
-    set.seed(101)
-    #Parametros SVM
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
-    
-    #Data
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    #SVM
-    switch(input$kernel,
-           "linear" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C),
-           
-           "polynomial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                          kernel=kernel, cost = C, gamma = gamma, coef0 = cf, degree = dg),
-           
-           "radial" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                      kernel=kernel, cost = C, gamma = gamma),
-           
-           "sigmoid" = datos.svm <- svm(clases~y+x, data=datos.train, 
-                                       kernel=kernel, cost = C, gamma = gamma, coef0 = cf)         
-    )
-    
     #total de vectores soporte
-    datos.svm$tot.nSV
+    svmx()$tot.nSV
+    
   })
-  #tabla
+  
   output$table <- DT::renderDataTable({
-    set.seed(101)
-    n <- input$numData
-    kernel <- input$kernel
-    C <- input$C
-    gamma <- input$gamma
-    cf <- input$coef0
-    dg <- input$degree
     
-    #Data
-    datos.index <- sample(1:nrow(datos),size=n)
-    datos.train <- datos[datos.index,]
-    datos.test <- datos[-datos.index,]
-    
-    DT::datatable(datos.train, options=list(orderClasses = TRUE))
+    DT::datatable(datax$entrenamiento, options=list(orderClasses = TRUE))
   })
 }
-#UI
-ui <- navbarPage( #pagina con navbar
-        theme = shinytheme("cerulean"),"SVM shiny app", #tema 
-                 tabPanel("SVM datos", 
+
+ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
+                 tabPanel("SVM",
                           sidebarLayout(
                             sidebarPanel(
-                              sliderInput('numData', 'Submuestra', value = 50, min = 10, max = nrow(datos), step = 1),
+                              fileInput('file1', 'Choose CSV File',
+                                        accept=c('text/csv', 
+                                                 'text/comma-separated-values,text/plain', 
+                                                 '.csv')),
+                              uiOutput("ui2"),
+                              sliderInput('numData', 'Submuestra', value = 50, min = 10, max = w, step = 1),
                               selectInput("kernel", "kernel",
                                           c(Lineal = "linear",
                                             Polinominal = "polynomial",
                                             Radial = "radial",
                                             Sigmoid = "sigmoid")),
-                              uiOutput("ui"), #sliders de parametros de kernel
+                              uiOutput("ui"),
                               h4("Matriz de confusion: ", align = "rigth"),
                               verbatimTextOutput('pred'),
                               h4("Porcentaje correctamente clasificados:", align = "rigth"),
@@ -269,7 +176,7 @@ ui <- navbarPage( #pagina con navbar
                               htmlOutput('nsv')
                             ),
                             mainPanel(
-                              tabsetPanel(#pestañas
+                              tabsetPanel(
                                 tabPanel("Grafica 1",
                                          rbokehOutput('newPlot')
                                 ),
@@ -277,24 +184,23 @@ ui <- navbarPage( #pagina con navbar
                                          plotOutput("plot1")
                                 ),
                                 tabPanel("Tabla",
-                                        DT::dataTableOutput("table")
+                                         DT::dataTableOutput("table")
                                 )
                               )
                             )
                           )
                  ),
                  tabPanel("Acerca",
-                          h4("Aplicacion de SVM v 3.5 "),
-                          p("Esta es una sencilla shiny app que implementa SVM sobre un conjunto de 3000 datos creados por R
-                  y clasificados en 3 clasess. 
-                  Del total de datos, especifique una submuestra, seleccione el tipo de kernel y en base a 
-                  eso configure los parametros necesarios.
-                  Se muestra la tabla de confusion, el porcentaje correctamente clasificado segun la prediccion, 
-                  el total de vectores soporte y la grafica."),
-                          p("Basada en ejemplos y la documentacion de RStudio Shiny"), 
+                          h4("Aplicacion de SVM v 4.0"),
+                          p("Esta es una sencilla shiny app que implementa SVM sobre un conjunto de 3000 datos 
+                            creados por R y clasificados en 3 clasess. Del total de datos, especifique una submuestra, 
+                            seleccione el tipo de kernel y en base a eso configure los parametros necesarios. Se muestra 
+                            la tabla de confusion, el porcentaje correctamente clasificado segun la prediccion, 
+                            el total de vectores soporte y la grafica."),
+                          p("Basada en ejemplos y la documentacion de RStudio Shiny"),
                           a(href="https://www.twitter.com/axelmora93", "Twitter"),
                           a(href="https://www.linkedin.com/in/axel-sunem-mora-olvera-338aa6108/", "LinkedIn")
+                          )
                  )
-)
 
 shinyApp(ui = ui, server = server)
