@@ -23,7 +23,6 @@ server <-  function(input, output) {
       read.csv(inFile()$datapath)
     }})
   
-  
   param <- reactiveValues()
   observe(param$n <- input$numData)
   observe(param$k <- input$kernel)
@@ -74,8 +73,7 @@ server <-  function(input, output) {
     tabPanel("Columnas",
              selectInput("xcol", "X", cols(), selected = cols()[1]),
              selectInput("ycol", "Y", cols(), selected = cols()[2]),
-             selectInput("ccol", "Clases", cols(), selected = cols()[3])
-    )
+             selectInput("ccol", "Clases", cols(), selected = cols()[3]))
   })
   
   output$ui <- renderUI({
