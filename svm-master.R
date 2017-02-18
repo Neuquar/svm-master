@@ -14,33 +14,37 @@ w = nrow(datos)
 
 server <-  function(input, output) {
   
-  inFile <- reactive({input$file1})
+  inFile <- reactive({input$file1}) #Archivo CSV
   
-  dtPrev <- reactive({
-    if (is.null(inFile())){
+  dtPrev <- reactive({ #Si no se ha ingresado un CSV, usa los datos preestablecidos
+    if (is.null(inFile())||input$chek ==FALSE){
       datos
     }else{
       read.csv(inFile()$datapath)
     }})
   
-  param <- reactiveValues()
-  observe(param$n <- input$numData)
+  #Parametros de la muestra y el tipo de kernel
+  param <- reactiveValues() 
+  observe(param$n <- if (input$chek == FALSE){input$numData}
+                        else{input$numData2})
   observe(param$k <- input$kernel)
   observe(param$c <- input$C)
   observe(param$g <- input$gamma)
   observe(param$cf <- input$coef0)
   observe(param$dg <- input$degree)
-  
-  cols <- reactive(colnames(dtPrev()))
-  sc <- reactiveValues()
-  observe(sc$x <- which(cols() == input$xcol))
-  observe(sc$y <- which(cols() == input$ycol))
-  observe(sc$c <- which(cols() == input$ccol))
-  
-  filtro <- function(x,y,c){
+  #Nombres de las columnas de la tabla de datos
+  cols <- reactive(colnames(dtPrev())) 
+  #se definen x, y, c que de las columnas seleccionadas de los datos 
+  sc <- reactiveValues() 
+  observe(sc$x <- which(cols() == input$xcol)) #variable x
+  observe(sc$y <- which(cols() == input$ycol)) #variable y
+  observe(sc$c <- which(cols() == input$ccol)) #variable que define las clases
+  #Funcion que crea un nuevo data frame a partir del ingresado, que solo tendra las 3 columnas necesarias
+  #ya seleccionadas, dichas columnas se estandarizan a ser nombradas x, y, c
+  filtro <- function(x,y,c){ 
     data.frame(x,y,c)
   }
-  
+  #Funcion filtro aplicada a los datos
   dtMaster <- reactive({filtro(dtPrev()[,sc$x], dtPrev()[,sc$y], dtPrev()[,sc$c])})
   
   indices <- function(data){
@@ -68,8 +72,11 @@ server <-  function(input, output) {
                            kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
   })
   
+  output$ui3 <- renderUI({
+    sliderInput("numData2", "Submuestra", value = 50, min = 10, max = nrow(dtPrev()), step = 1)
+  })
+  
   output$ui2 <- renderUI({
-    
     tabPanel("Columnas",
              selectInput("xcol", "X", cols(), selected = cols()[1]),
              selectInput("ycol", "Y", cols(), selected = cols()[2]),
@@ -125,6 +132,10 @@ server <-  function(input, output) {
     mc
   })
   
+  output$sum <- renderPrint({
+    summary(svmx())
+  })
+  
   output$state <- renderText({
     #Prediccion de los restantes
     asignado <- predict(svmx(),new=datax$test)
@@ -141,11 +152,9 @@ server <-  function(input, output) {
   output$nsv <- renderText({
     #total de vectores soporte
     svmx()$tot.nSV
-    
   })
   
   output$table <- DT::renderDataTable({
-    
     DT::datatable(datax$entrenamiento, options=list(orderClasses = TRUE))
   })
 }
@@ -154,12 +163,18 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                  tabPanel("SVM",
                           sidebarLayout(
                             sidebarPanel(
-                              fileInput('file1', 'Choose CSV File',
-                                        accept=c('text/csv', 
-                                                 'text/comma-separated-values,text/plain', 
-                                                 '.csv')),
+                              checkboxInput("chek", label = "Usar archivo CSV", value = FALSE),
+                              conditionalPanel("input.chek == false",
+                                sliderInput("numData", "Submuestra", value = 50, min = 10, max = w, step = 1)
+                              ),
+                              conditionalPanel("input.chek == true",
+                                fileInput('file1', 'Selecciona un CSV para analizar',
+                                         accept=c('text/csv', 
+                                                  'text/comma-separated-values,text/plain', 
+                                                  '.csv')),
+                                uiOutput("ui3")
+                              ),
                               uiOutput("ui2"),
-                              sliderInput('numData', 'Submuestra', value = 50, min = 10, max = w, step = 1),
                               selectInput("kernel", "kernel",
                                           c(Lineal = "linear",
                                             Polinominal = "polynomial",
@@ -183,6 +198,9 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                                 ),
                                 tabPanel("Tabla",
                                          DT::dataTableOutput("table")
+                                ),
+                                tabPanel("Sumario",
+                                        verbatimTextOutput("sum")        
                                 )
                               )
                             )
