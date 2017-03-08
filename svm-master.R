@@ -1,5 +1,6 @@
 library(ggplot2)
 library(e1071)
+library(caret)
 library(rbokeh)
 library(shinyjs)
 library(shinythemes)
@@ -72,15 +73,19 @@ server <-  function(input, output) {
                            kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
   })
   
+  svmx.tune <- reactive({
+    best.tune(svm,c~x + y, data = datax$entrenamiento, kernel = input$kernel2)
+  })
+  
   output$ui3 <- renderUI({
     sliderInput("numData2", "Submuestra", value = 50, min = 10, max = nrow(dtPrev()), step = 1)
   })
   
   output$ui2 <- renderUI({
     tabPanel("Columnas",
-             selectInput("xcol", "X", cols(), selected = cols()[1]),
-             selectInput("ycol", "Y", cols(), selected = cols()[2]),
-             selectInput("ccol", "Clases", cols(), selected = cols()[3]))
+             selectInput("xcol", "Variable x", cols(), selected = cols()[1]),
+             selectInput("ycol", "Variable y", cols(), selected = cols()[2]),
+             selectInput("ccol", "Variable discriminadora", cols(), selected = cols()[3]))
   })
   
   output$ui <- renderUI({
@@ -110,7 +115,6 @@ server <-  function(input, output) {
   })
   
   output$newPlot <- renderRbokeh({
-    
     p <- figure(width = 1000, height = 450) %>%
       ly_points(x, y, data = datax$entrenamiento,
                 color = c, glyph = c(21,25)[1:param$n %in% svmx()$index + 1],
@@ -119,8 +123,12 @@ server <-  function(input, output) {
   })
   
   output$plot1 <- renderPlot({
-    #plot(svmx(), data=datax$entrenamiento[,c(1,2,3)])
     plot(svmx(), datax$entrenamiento, y ~ x, 
+         slice = list(x = 1, y = 2))
+  })
+  
+  output$plot1T <- renderPlot({
+    plot(svmx.tune(), datax$entrenamiento, y ~ x, 
          slice = list(x = 1, y = 2))
   })
   
@@ -132,8 +140,20 @@ server <-  function(input, output) {
     mc
   })
   
+  output$predT <- renderPrint({
+    #Prediccion de los restantes
+    asignadoT <- predict(svmx.tune(),new=datax$test)
+    #Tabla de confusion
+    mcT <- with(datax$test,(pred=table(asignadoT,c)))
+    mcT
+  })
+  
   output$sum <- renderPrint({
     summary(svmx())
+  })
+  
+  output$sumTune <- renderPrint({
+    summary(svmx.tune())
   })
   
   output$state <- renderText({
@@ -143,10 +163,30 @@ server <-  function(input, output) {
     mc <- with(datax$test,(pred=table(asignado,c)))
     #porcentaje correctamente clasificados
     if(is.nan(correctos <- sum(diag(mc)) / nrow(datax$test) *100)){
-      correctos <- 100
+      correctos <- 0
     }else {
       correctos <- sum(diag(mc)) / nrow(datax$test) *100
     }
+  })
+  
+  output$stateT <- renderText({
+    #Prediccion de los restantes
+    asignadoT <- predict(svmx.tune(),new=datax$test)
+    #Tabla de confusion
+    mcT <- with(datax$test,(pred=table(asignadoT,c)))
+    #porcentaje correctamente clasificados
+    if(is.nan(correctosT <- sum(diag(mcT)) / nrow(datax$test) *100)){
+      correctosT <- 0
+    }else {
+      correctosT <- sum(diag(mcT)) / nrow(datax$test) *100
+    }
+  })
+  
+  output$matrix <- renderText({
+    #testset <- datax$test
+    #svm.pred <- predict(svmx(),testset[,-3])
+    #cm <- confusionMatrix(svm.pred, testset[,3]) #Matriz de confusion paquete caret
+    #cm
   })
   
   output$nsv <- renderText({
@@ -154,13 +194,28 @@ server <-  function(input, output) {
     svmx()$tot.nSV
   })
   
-  output$table <- DT::renderDataTable({
+  output$entrena <- DT::renderDataTable({
     DT::datatable(datax$entrenamiento, options=list(orderClasses = TRUE))
+  })
+  
+  output$prueba <- DT::renderDataTable({
+    DT::datatable(datax$test, options=list(orderClasses = TRUE))
+  })
+  
+  output$table <- DT::renderDataTable({
+    DT::datatable(dtMaster(), options=list(orderClasses = TRUE))
+  })
+  
+  output$tuneSummary <- renderPrint({
+    #tunex <- best.tune(svm,c ~ y + x, data = datax$entrenamiento, kernel=param$k)
+    tunex <- tune.svm(c ~ y + x, data = datax$entrenamiento, gamma=10^(-2:2), cost=10^(-2:4))
+                      #, degree = 0, coef0 = 0)
+    tunex$best.model
   })
 }
 
 ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
-                 tabPanel("SVM",
+                 tabPanel("Data",
                           sidebarLayout(
                             sidebarPanel(
                               checkboxInput("chek", label = "Usar archivo CSV", value = FALSE),
@@ -174,34 +229,63 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                                                   '.csv')),
                                 uiOutput("ui3")
                               ),
-                              uiOutput("ui2"),
+                              uiOutput("ui2")
+                            ),
+                            mainPanel(
+                              tabsetPanel(
+                                tabPanel("Entrenamiento",
+                                         DT::dataTableOutput("entrena")),
+                                tabPanel("Prueba",
+                                         DT::dataTableOutput("prueba")),
+                                tabPanel("Dataframe original",
+                                         DT::dataTableOutput("table"))
+                                
+                              )
+                            )
+                          )
+                 ),
+                 tabPanel("SVM",
+                          sidebarLayout(
+                            sidebarPanel(
                               selectInput("kernel", "kernel",
                                           c(Lineal = "linear",
                                             Polinominal = "polynomial",
                                             Radial = "radial",
                                             Sigmoid = "sigmoid")),
-                              uiOutput("ui"),
-                              h4("Matriz de confusion: ", align = "rigth"),
-                              verbatimTextOutput('pred'),
-                              h4("Porcentaje correctamente clasificados:", align = "rigth"),
-                              htmlOutput('state'),
-                              h4("Total de vectores soporte:", align = "rigth"),
-                              htmlOutput('nsv')
+                              uiOutput("ui")
                             ),
                             mainPanel(
                               tabsetPanel(
-                                tabPanel("Grafica 1",
-                                         rbokehOutput('newPlot')
-                                ),
-                                tabPanel("Grafica 2",
-                                         plotOutput("plot1")
-                                ),
-                                tabPanel("Tabla",
-                                         DT::dataTableOutput("table")
-                                ),
                                 tabPanel("Sumario",
-                                        verbatimTextOutput("sum")        
-                                )
+                                         verbatimTextOutput("sum")),
+                                tabPanel("Matriz",
+                                         verbatimTextOutput("pred"),
+                                         verbatimTextOutput("state"))
+                              )
+                            )
+                          )
+                 ),
+                 tabPanel("Grafica",
+                          plotOutput("plot1")
+                 ),
+                 tabPanel("Tune",
+                          sidebarLayout(
+                            sidebarPanel(
+                              selectInput("kernel2", "kernel2",
+                                          c(Lineal = "linear",
+                                            Polinominal = "polynomial",
+                                            Radial = "radial",
+                                            Sigmoid = "sigmoid"))
+                            ),
+                            mainPanel(
+                              tabsetPanel(
+                                tabPanel("Tune",
+                                         verbatimTextOutput("sumTune")),
+                                tabPanel("Grafica",
+                                         plotOutput("plot1T")),
+                                tabPanel("Matriz",
+                                         verbatimTextOutput("predT"),
+                                         verbatimTextOutput("stateT"))
                               )
                             )
                           )
