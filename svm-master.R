@@ -96,32 +96,20 @@ server <-  function(input, output) {
            
            "linear" = tabPanel("Lineal", 
                                numericInput('C','Training parameter C', value = 1)),
-                               #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1)),
            
            "polynomial" = tabPanel("Polinominal",
                                    numericInput('C','Training parameter C', value = 1),
                                    numericInput('gamma','Training parameter gamma', value = 0.25),
                                    numericInput('coef0','Training parameter coef0', value = 1),
                                    numericInput('degree','Training parameter degree', value = 3)),
-                                   #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                                   #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
-                                   #sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5),
-                                   #sliderInput('degree', 'Training parameter degree', value = 3, min = 0, max = 10, step = 0.5)),
-           
            "radial" = tabPanel("Radial",
                                numericInput('C','Training parameter C', value = 1),
                                numericInput('gamma','Training parameter gamma', value = 0.25)),
-                               #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                               #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05)),
-           
            "sigmoid" = tabPanel("Sigmoid",
                                 numericInput('C','Training parameter C', value = 1),
                                 numericInput('gamma','Training parameter gamma', value = 0.25),
                                 numericInput('coef0','Training parameter coef0', value = 1))
-                                #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                                #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
-                                #sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5))
-    )
+     )
   })
   
   output$newPlot <- renderRbokeh({
