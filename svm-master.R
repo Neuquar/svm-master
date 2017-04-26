@@ -49,7 +49,7 @@ server <-  function(input, output) {
   dtMaster <- reactive({filtro(dtPrev()[,sc$x], dtPrev()[,sc$y], dtPrev()[,sc$c])})
   
   indices <- function(data){
-    set.seed(101)
+    set.seed(1234)
     sample(1:nrow(data),size=(param$n))
   }
   
@@ -95,22 +95,32 @@ server <-  function(input, output) {
     switch(input$kernel,
            
            "linear" = tabPanel("Lineal", 
-                               sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1)),
+                               numericInput('C','Training parameter C', value = 1)),
+                               #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1)),
            
            "polynomial" = tabPanel("Polinominal",
-                                   sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                                   sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
-                                   sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5),
-                                   sliderInput('degree', 'Training parameter degree', value = 3, min = 0, max = 10, step = 0.5)),
+                                   numericInput('C','Training parameter C', value = 1),
+                                   numericInput('gamma','Training parameter gamma', value = 0.25),
+                                   numericInput('coef0','Training parameter coef0', value = 1),
+                                   numericInput('degree','Training parameter degree', value = 3)),
+                                   #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
+                                   #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
+                                   #sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5),
+                                   #sliderInput('degree', 'Training parameter degree', value = 3, min = 0, max = 10, step = 0.5)),
            
            "radial" = tabPanel("Radial",
-                               sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                               sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05)),
+                               numericInput('C','Training parameter C', value = 1),
+                               numericInput('gamma','Training parameter gamma', value = 0.25)),
+                               #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
+                               #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05)),
            
            "sigmoid" = tabPanel("Sigmoid",
-                                sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
-                                sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
-                                sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5))
+                                numericInput('C','Training parameter C', value = 1),
+                                numericInput('gamma','Training parameter gamma', value = 0.25),
+                                numericInput('coef0','Training parameter coef0', value = 1))
+                                #sliderInput('C', 'Training parameter C', value = 1, min = 1, max = 1000, step = 1),
+                                #sliderInput('gamma', 'Training parameter gamma', value = 0.25, min = 0, max = 10, step = 0.05),
+                                #sliderInput('coef0', 'Training parameter coef0', value = 0, min = 0, max = 10, step = 0.5))
     )
   })
   
