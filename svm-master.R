@@ -14,17 +14,17 @@ datos=data.frame(x,y,clases)
 w = nrow(datos)
 
 server <-  function(input, output) {
-  
-  inFile <- reactive({input$file1}) #Archivo CSV
-  
-  dtPrev <- reactive({ #Si no se ha ingresado un CSV, usa los datos preestablecidos
-    if (is.null(inFile())||input$chek ==FALSE){
+  #Archivo CSV
+  inFile <- reactive({input$file1}) 
+  #Si no se ha ingresado un CSV, usa los datos preestablecidos
+  dtPrev <- reactive({ 
+    if (is.null(inFile())||input$chek == FALSE){
       datos
     }else{
       read.csv(inFile()$datapath)
     }})
   
-  #Parametros de la muestra y el tipo de kernel
+  ### Parametros de la muestra y el tipo de kernel ###
   param <- reactiveValues() 
   observe(param$n <- if (input$chek == FALSE){input$numData}
                         else{input$numData2})
@@ -33,20 +33,28 @@ server <-  function(input, output) {
   observe(param$g <- input$gamma)
   observe(param$cf <- input$coef0)
   observe(param$dg <- input$degree)
-  #Nombres de las columnas de la tabla de datos
+  
+  ### Nombres de las columnas de la tabla de datos ###
   cols <- reactive(colnames(dtPrev())) 
   #se definen x, y, c que de las columnas seleccionadas de los datos 
   sc <- reactiveValues() 
   observe(sc$x <- which(cols() == input$xcol)) #variable x
   observe(sc$y <- which(cols() == input$ycol)) #variable y
   observe(sc$c <- which(cols() == input$ccol)) #variable que define las clases
-  #Funcion que crea un nuevo data frame a partir del ingresado, que solo tendra las 3 columnas necesarias
-  #ya seleccionadas, dichas columnas se estandarizan a ser nombradas x, y, c
-  filtro <- function(x,y,c){ 
-    data.frame(x,y,c)
-  }
-  #Funcion filtro aplicada a los datos
-  dtMaster <- reactive({filtro(dtPrev()[,sc$x], dtPrev()[,sc$y], dtPrev()[,sc$c])})
+
+  ### VARIABLES SELECCIONADAS ###
+  pm <- reactiveValues()
+  observe(pm$x <- as.character(input$xcol))
+  observe(pm$y <- as.character(input$ycol))
+  observe(pm$c <- as.character(input$ccol))
+  
+  ### FORMULAS ###
+  for.svm1 <- reactive({as.formula(paste(pm$c,"~",pm$x,"+",pm$y))})
+  for.svm2 <- reactive({as.formula(paste(pm$c,"~","."))})
+  for.plot <- reactive({as.formula(paste(pm$y,"~",pm$x))})
+  
+  ### PREPARACION DATOS ###
+  dtMaster <- reactive(dtPrev())
   
   indices <- function(data){
     set.seed(1234)
@@ -58,36 +66,43 @@ server <-  function(input, output) {
   observe(datax$entrenamiento <- dtMaster()[datax$indices,])
   observe(datax$test <- dtMaster()[-datax$indices,])
   
+  ### SVM ###
   svmx <- reactive({
-    switch(input$kernel,
-           "linear" =  svm(c~y + x, data=datax$entrenamiento, 
-                           kernel=param$k, cost = param$c),
-           
-           "polynomial" =  svm(c~y + x, data=datax$entrenamiento, 
-                               kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf, degree = param$dg),
-           
-           "radial" = svm(c~y + x, data=datax$entrenamiento, 
-                          kernel=param$k, cost = param$c, gamma = param$g),
-           
-           "sigmoid" = svm(c~y + x, data=datax$entrenamiento, 
-                           kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
+    if(input$var == FALSE){
+      switch(input$kernel,
+             "linear" =  svm(for.svm1(), data=datax$entrenamiento, 
+                             kernel=param$k, cost = param$c),
+             
+             "polynomial" =  svm(for.svm1(), data=datax$entrenamiento, 
+                                 kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf, degree = param$dg),
+             
+             "radial" = svm(for.svm1(), data=datax$entrenamiento, 
+                            kernel=param$k, cost = param$c, gamma = param$g),
+             
+             "sigmoid" = svm(for.svm1(), data=datax$entrenamiento, 
+                             kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
+    }else if (input$var == TRUE){
+      switch(input$kernel,
+             "linear" =  svm(for.svm2(), data=datax$entrenamiento, 
+                             kernel=param$k, cost = param$c),
+             
+             "polynomial" =  svm(for.svm2(), data=datax$entrenamiento, 
+                                 kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf, degree = param$dg),
+             
+             "radial" = svm(for.svm2(), data=datax$entrenamiento, 
+                            kernel=param$k, cost = param$c, gamma = param$g),
+             
+             "sigmoid" = svm(for.svm2(), data=datax$entrenamiento, 
+                             kernel=param$k, cost = param$c, gamma = param$g, coef0 = param$cf))
+    }
   })
   
+  ### BEST TUNE ###
   svmx.tune <- reactive({
-    best.tune(svm,c~x + y, data = datax$entrenamiento, kernel = input$kernel2)
+    best.tune(svm,for.svm1(), data = datax$entrenamiento, kernel = input$kernel2)
   })
   
-  output$ui3 <- renderUI({
-    sliderInput("numData2", "Submuestra", value = 50, min = 10, max = nrow(dtPrev()), step = 1)
-  })
-  
-  output$ui2 <- renderUI({
-    tabPanel("Columnas",
-             selectInput("xcol", "Variable x", cols(), selected = cols()[1]),
-             selectInput("ycol", "Variable y", cols(), selected = cols()[2]),
-             selectInput("ccol", "Variable discriminadora", cols(), selected = cols()[3]))
-  })
-  
+  ### UI DINAMICAS ###
   output$ui <- renderUI({
     if (is.null(input$kernel))
       return()
@@ -112,29 +127,38 @@ server <-  function(input, output) {
      )
   })
   
-  output$newPlot <- renderRbokeh({
-    p <- figure(width = 1000, height = 450) %>%
-      ly_points(x, y, data = datax$entrenamiento,
-                color = c, glyph = c(21,25)[1:param$n %in% svmx()$index + 1],
-                hover = list(y, x))
-    p
+  output$ui2 <- renderUI({
+    tabPanel("Columnas",
+             selectInput("xcol", "Variable x", cols(), selected = cols()[1]),
+             selectInput("ycol", "Variable y", cols(), selected = cols()[2]))
   })
   
+  output$ui3 <- renderUI({
+    sliderInput("numData2", "Submuestra", value = 50, min = 10, max = nrow(dtPrev()), step = 1)
+  })
+  
+  output$vd <- renderUI({
+    tabPanel("VD",
+             selectInput("ccol", "Variable discriminadora", cols(), selected = cols()[3]))
+  })
+  
+  ### GRAFICAS ###
   output$plot1 <- renderPlot({
-    plot(svmx(), datax$entrenamiento, y ~ x, 
+    plot(svmx(), datax$entrenamiento, for.plot(), 
          slice = list(x = 1, y = 2))
   })
   
   output$plot1T <- renderPlot({
-    plot(svmx.tune(), datax$entrenamiento, y ~ x, 
+    plot(svmx.tune(), datax$entrenamiento, for.plot(), 
          slice = list(x = 1, y = 2))
   })
   
+  ### MATRIZ DE CONFUSION ###
   output$pred <- renderPrint({
     #Prediccion de los restantes
     asignado <- predict(svmx(),new=datax$test)
     #Tabla de confusion
-    mc <- with(datax$test,(pred=table(asignado,c)))
+    mc <- with(datax$test,(pred=table(asignado,datax$test[,sc$c])))
     mc
   })
   
@@ -142,10 +166,11 @@ server <-  function(input, output) {
     #Prediccion de los restantes
     asignadoT <- predict(svmx.tune(),new=datax$test)
     #Tabla de confusion
-    mcT <- with(datax$test,(pred=table(asignadoT,c)))
+    mcT <- with(datax$test,(pred=table(asignadoT,datax$test[,sc$c])))
     mcT
   })
   
+  ### SUMARIOS SVM Y TUNE ###
   output$sum <- renderPrint({
     summary(svmx())
   })
@@ -154,11 +179,12 @@ server <-  function(input, output) {
     summary(svmx.tune())
   })
   
+  ### PORCENTAJE CLASIFICADO ##
   output$state <- renderText({
     #Prediccion de los restantes
     asignado <- predict(svmx(),new=datax$test)
     #Tabla de confusion
-    mc <- with(datax$test,(pred=table(asignado,c)))
+    mc <- with(datax$test,(pred=table(asignado,datax$test[,sc$c])))
     #porcentaje correctamente clasificados
     if(is.nan(correctos <- sum(diag(mc)) / nrow(datax$test) *100)){
       correctos <- 0
@@ -171,7 +197,7 @@ server <-  function(input, output) {
     #Prediccion de los restantes
     asignadoT <- predict(svmx.tune(),new=datax$test)
     #Tabla de confusion
-    mcT <- with(datax$test,(pred=table(asignadoT,c)))
+    mcT <- with(datax$test,(pred=table(asignadoT,datax$test[,sc$c])))
     #porcentaje correctamente clasificados
     if(is.nan(correctosT <- sum(diag(mcT)) / nrow(datax$test) *100)){
       correctosT <- 0
@@ -180,18 +206,7 @@ server <-  function(input, output) {
     }
   })
   
-  output$matrix <- renderText({
-    #testset <- datax$test
-    #svm.pred <- predict(svmx(),testset[,-3])
-    #cm <- confusionMatrix(svm.pred, testset[,3]) #Matriz de confusion paquete caret
-    #cm
-  })
-  
-  output$nsv <- renderText({
-    #total de vectores soporte
-    svmx()$tot.nSV
-  })
-  
+  ### TABLAS ###
   output$entrena <- DT::renderDataTable({
     DT::datatable(datax$entrenamiento, options=list(orderClasses = TRUE))
   })
@@ -203,13 +218,6 @@ server <-  function(input, output) {
   output$table <- DT::renderDataTable({
     DT::datatable(dtMaster(), options=list(orderClasses = TRUE))
   })
-  
-  output$tuneSummary <- renderPrint({
-    #tunex <- best.tune(svm,c ~ y + x, data = datax$entrenamiento, kernel=param$k)
-    tunex <- tune.svm(c ~ y + x, data = datax$entrenamiento, gamma=10^(-2:2), cost=10^(-2:4))
-                      #, degree = 0, coef0 = 0)
-    tunex$best.model
-  })
 }
 
 ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
@@ -219,16 +227,18 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                               checkboxInput("chek", label = "Usar archivo CSV", value = FALSE),
                               conditionalPanel("input.chek == false",
                                 sliderInput("numData", "Submuestra", value = 50, min = 10, max = w, step = 1)
-                              ),
+                                ),
                               conditionalPanel("input.chek == true",
                                 fileInput('file1', 'Selecciona un CSV para analizar',
                                          accept=c('text/csv', 
                                                   'text/comma-separated-values,text/plain', 
                                                   '.csv')),
                                 uiOutput("ui3")
+                                ),
+                              checkboxInput("var", label = "Analizar todas las variables", value = FALSE),
+                              uiOutput("ui2"),
+                              uiOutput("vd")
                               ),
-                              uiOutput("ui2")
-                            ),
                             mainPanel(
                               tabsetPanel(
                                 tabPanel("Entrenamiento",
@@ -289,7 +299,7 @@ ui <- navbarPage(theme = shinytheme("cerulean"),"SVM shiny app",
                           )
                  ),
                  tabPanel("Acerca",
-                          h4("Aplicacion de SVM v 4.0"),
+                          h4("Aplicacion de SVM v 5.0"),
                           p("Esta es una sencilla shiny app que implementa SVM sobre un conjunto de datos.
                             Por defecto, trabaja con un data frame de 3000 observaciones 
                             creados por R y clasificados en 3 clasess. 
