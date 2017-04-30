@@ -99,7 +99,11 @@ server <-  function(input, output) {
   
   ### BEST TUNE ###
   svmx.tune <- reactive({
-    best.tune(svm,for.svm1(), data = datax$entrenamiento, kernel = input$kernel2)
+    if(input$var == FALSE){
+      best.tune(svm,for.svm1(), data = datax$entrenamiento, kernel = input$kernel2)
+    }else if (input$var == TRUE){
+      best.tune(svm,for.svm2(), data = datax$entrenamiento, kernel = input$kernel2)
+    }
   })
   
   ### UI DINAMICAS ###
